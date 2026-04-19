@@ -1,0 +1,1600 @@
+# Restaurant Discount App - NestJS Backend
+
+## Project Structure
+```
+src/
+├── app.module.ts
+├── main.ts
+├── auth/
+│   ├── auth.module.ts
+│   ├── auth.service.ts
+│   ├── auth.controller.ts
+│   ├── dto/
+│   │   ├── login.dto.ts
+│   │   └── register.dto.ts
+│   ├── guards/
+│   │   ├── jwt-auth.guard.ts
+│   │   └── roles.guard.ts
+│   ├── decorators/
+│   │   └── roles.decorator.ts
+│   └── strategies/
+│       └── jwt.strategy.ts
+├── users/
+│   ├── users.module.ts
+│   ├── users.service.ts
+│   ├── users.controller.ts
+│   ├── schemas/
+│   │   └── user.schema.ts
+│   └── dto/
+│       └── create-user.dto.ts
+├── restaurants/
+│   ├── restaurants.module.ts
+│   ├── restaurants.service.ts
+│   ├── restaurants.controller.ts
+│   ├── schemas/
+│   │   └── restaurant.schema.ts
+│   └── dto/
+│       ├── create-restaurant.dto.ts
+│       └── update-restaurant.dto.ts
+├── reviews/
+│   ├── reviews.module.ts
+│   ├── reviews.service.ts
+│   ├── reviews.controller.ts
+│   ├── schemas/
+│   │   └── review.schema.ts
+│   └── dto/
+│       └── create-review.dto.ts
+├── redemptions/
+│   ├── redemptions.module.ts
+│   ├── redemptions.service.ts
+│   ├── redemptions.controller.ts
+│   ├── schemas/
+│   │   └── redemption.schema.ts
+│   └── dto/
+│       └── create-redemption.dto.ts
+├── clothing/
+│   ├── clothing.module.ts
+│   ├── clothing.service.ts
+│   ├── clothing.controller.ts
+│   ├── schemas/
+│   │   └── clothing.schema.ts
+│   └── dto/
+│       ├── create-clothing.dto.ts
+│       └── update-clothing.dto.ts
+├── discounts/
+│   ├── discounts.module.ts
+│   ├── discounts.service.ts
+│   ├── discounts.controller.ts
+│   ├── schemas/
+│   │   └── discount.schema.ts
+│   └── dto/
+│       ├── create-discount.dto.ts
+│       └── update-discount.dto.ts
+├── codes/
+│   ├── codes.module.ts
+│   ├── codes.service.ts
+│   ├── codes.controller.ts
+│   ├── schemas/
+│   │   └── code.schema.ts
+│   └── dto/
+│       └── create-code.dto.ts
+└── common/
+    ├── interfaces/
+    │   └── user-payload.interface.ts
+    └── enums/
+        └── roles.enum.ts
+```
+
+## Installation & Dependencies
+
+```bash
+npm install @nestjs/common @nestjs/core @nestjs/platform-express
+npm install @nestjs/mongoose mongoose
+npm install @nestjs/jwt @nestjs/passport passport passport-jwt
+npm install bcryptjs
+npm install class-validator class-transformer
+npm install @types/bcryptjs @types/passport-jwt
+```
+
+## 1. main.ts
+```typescript
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+  }));
+  
+  app.enableCors();
+  
+  await app.listen(3000);
+}
+bootstrap();
+```
+
+## 2. app.module.ts
+```typescript
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { ConfigModule } from '@nestjs/config';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { RestaurantsModule } from './restaurants/restaurants.module';
+import { ReviewsModule } from './reviews/reviews.module';
+import { RedemptionsModule } from './redemptions/redemptions.module';
+import { ClothingModule } from './clothing/clothing.module';
+import { DiscountsModule } from './discounts/discounts.module';
+import { CodesModule } from './codes/codes.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/restaurant-app'),
+    AuthModule,
+    UsersModule,
+    RestaurantsModule,
+    ReviewsModule,
+    RedemptionsModule,
+    ClothingModule,
+    DiscountsModule,
+    CodesModule,
+  ],
+})
+export class AppModule {}
+```
+
+## 3. Common Files
+
+### src/common/enums/roles.enum.ts
+```typescript
+export enum Role {
+  ADMIN = 'admin',
+  USER = 'user',
+}
+```
+
+### src/common/interfaces/user-payload.interface.ts
+```typescript
+export interface UserPayload {
+  sub: string;
+  email: string;
+  role: string;
+}
+```
+
+## 4. User Schema & Module
+
+### src/users/schemas/user.schema.ts
+```typescript
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
+import { Role } from '../../common/enums/roles.enum';
+
+export type UserDocument = User & Document;
+
+@Schema({ timestamps: true })
+export class User {
+  @Prop({ required: true, unique: true })
+  userID: string;
+
+  @Prop({ required: true })
+  name: string;
+
+  @Prop({ required: true, unique: true })
+  email: string;
+
+  @Prop({ required: true })
+  password: string;
+
+  @Prop({ required: true, enum: Role, default: Role.USER })
+  role: Role;
+}
+
+export const UserSchema = SchemaFactory.createForClass(User);
+```
+
+### src/users/dto/create-user.dto.ts
+```typescript
+import { IsEmail, IsString, MinLength, IsEnum } from 'class-validator';
+import { Role } from '../../common/enums/roles.enum';
+
+export class CreateUserDto {
+  @IsString()
+  userID: string;
+
+  @IsString()
+  name: string;
+
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @MinLength(6)
+  password: string;
+
+  @IsEnum(Role)
+  role: Role;
+}
+```
+
+### src/users/users.service.ts
+```typescript
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User, UserDocument } from './schemas/user.schema';
+import { CreateUserDto } from './dto/create-user.dto';
+import * as bcrypt from 'bcryptjs';
+
+@Injectable()
+export class UsersService {
+  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+
+  async create(createUserDto: CreateUserDto): Promise<User> {
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    const createdUser = new this.userModel({
+      ...createUserDto,
+      password: hashedPassword,
+    });
+    return createdUser.save();
+  }
+
+  async findAll(): Promise<User[]> {
+    return this.userModel.find().select('-password').exec();
+  }
+
+  async findOne(id: string): Promise<User> {
+    return this.userModel.findById(id).select('-password').exec();
+  }
+
+  async findByEmail(email: string): Promise<User> {
+    return this.userModel.findOne({ email }).exec();
+  }
+
+  async remove(id: string): Promise<User> {
+    return this.userModel.findByIdAndDelete(id).exec();
+  }
+}
+```
+
+### src/users/users.controller.ts
+```typescript
+import { Controller, Get, Delete, Param, UseGuards } from '@nestjs/common';
+import { UsersService } from './users.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../common/enums/roles.enum';
+
+@Controller('users')
+@UseGuards(JwtAuthGuard)
+export class UsersController {
+  constructor(private readonly usersService: UsersService) {}
+
+  @Get()
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  findAll() {
+    return this.usersService.findAll();
+  }
+
+  @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  remove(@Param('id') id: string) {
+    return this.usersService.remove(id);
+  }
+}
+```
+
+### src/users/users.module.ts
+```typescript
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { UsersService } from './users.service';
+import { UsersController } from './users.controller';
+import { User, UserSchema } from './schemas/user.schema';
+
+@Module({
+  imports: [MongooseModule.forFeature([{ name: User.name, schema: UserSchema }])],
+  providers: [UsersService],
+  controllers: [UsersController],
+  exports: [UsersService],
+})
+export class UsersModule {}
+```
+
+## 5. Auth Module
+
+### src/auth/dto/register.dto.ts
+```typescript
+import { IsEmail, IsString, MinLength } from 'class-validator';
+
+export class RegisterDto {
+  @IsString()
+  userID: string;
+
+  @IsString()
+  name: string;
+
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @MinLength(6)
+  password: string;
+}
+```
+
+### src/auth/dto/login.dto.ts
+```typescript
+import { IsEmail, IsString } from 'class-validator';
+
+export class LoginDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  password: string;
+}
+```
+
+### src/auth/strategies/jwt.strategy.ts
+```typescript
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { PassportStrategy } from '@nestjs/passport';
+import { Injectable } from '@nestjs/common';
+import { UserPayload } from '../../common/interfaces/user-payload.interface';
+
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor() {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: process.env.JWT_SECRET || 'secretKey',
+    });
+  }
+
+  async validate(payload: UserPayload) {
+    return { userId: payload.sub, email: payload.email, role: payload.role };
+  }
+}
+```
+
+### src/auth/guards/jwt-auth.guard.ts
+```typescript
+import { Injectable } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+
+@Injectable()
+export class JwtAuthGuard extends AuthGuard('jwt') {}
+```
+
+### src/auth/decorators/roles.decorator.ts
+```typescript
+import { SetMetadata } from '@nestjs/common';
+import { Role } from '../../common/enums/roles.enum';
+
+export const ROLES_KEY = 'roles';
+export const Roles = (...roles: Role[]) => SetMetadata(ROLES_KEY, roles);
+```
+
+### src/auth/guards/roles.guard.ts
+```typescript
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { Role } from '../../common/enums/roles.enum';
+import { ROLES_KEY } from '../decorators/roles.decorator';
+
+@Injectable()
+export class RolesGuard implements CanActivate {
+  constructor(private reflector: Reflector) {}
+
+  canActivate(context: ExecutionContext): boolean {
+    const requiredRoles = this.reflector.getAllAndOverride<Role[]>(ROLES_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (!requiredRoles) {
+      return true;
+    }
+    const { user } = context.switchToHttp().getRequest();
+    return requiredRoles.some((role) => user.role?.includes(role));
+  }
+}
+```
+
+### src/auth/auth.service.ts
+```typescript
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { UsersService } from '../users/users.service';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import * as bcrypt from 'bcryptjs';
+import { Role } from '../common/enums/roles.enum';
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private usersService: UsersService,
+    private jwtService: JwtService,
+  ) {}
+
+  async register(registerDto: RegisterDto) {
+    const user = await this.usersService.create({
+      ...registerDto,
+      role: Role.USER,
+    });
+    const payload = { email: user.email, sub: user._id, role: user.role };
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+    };
+  }
+
+  async login(loginDto: LoginDto) {
+    const user = await this.usersService.findByEmail(loginDto.email);
+    if (!user || !(await bcrypt.compare(loginDto.password, user.password))) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    const payload = { email: user.email, sub: user._id, role: user.role };
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+    };
+  }
+}
+```
+
+### src/auth/auth.controller.ts
+```typescript
+import { Controller, Post, Body } from '@nestjs/common';
+import { AuthService } from './auth.service';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+
+@Controller('auth')
+export class AuthController {
+  constructor(private readonly authService: AuthService) {}
+
+  @Post('register')
+  register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
+  }
+
+  @Post('login')
+  login(@Body() loginDto: LoginDto) {
+    return this.authService.login(loginDto);
+  }
+}
+```
+
+### src/auth/auth.module.ts
+```typescript
+import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
+import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { UsersModule } from '../users/users.module';
+import { JwtStrategy } from './strategies/jwt.strategy';
+
+@Module({
+  imports: [
+    UsersModule,
+    PassportModule,
+    JwtModule.register({
+      secret: process.env.JWT_SECRET || 'secretKey',
+      signOptions: { expiresIn: '1d' },
+    }),
+  ],
+  providers: [AuthService, JwtStrategy],
+  controllers: [AuthController],
+})
+export class AuthModule {}
+```
+
+## 6. Restaurant Module
+
+### src/restaurants/schemas/restaurant.schema.ts
+```typescript
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
+
+export type RestaurantDocument = Restaurant & Document;
+
+@Schema({ timestamps: true })
+export class Restaurant {
+  @Prop({ required: true })
+  restaurantID: string;
+
+  @Prop({ required: true })
+  name: string;
+
+  @Prop({ required: true })
+  address: string;
+
+  @Prop({ required: true })
+  phoneNumber: string;
+
+  @Prop({ required: true })
+  discount: number;
+}
+
+export const RestaurantSchema = SchemaFactory.createForClass(Restaurant);
+```
+
+### src/restaurants/dto/create-restaurant.dto.ts
+```typescript
+import { IsString, IsNumber, IsPositive } from 'class-validator';
+
+export class CreateRestaurantDto {
+  @IsString()
+  restaurantID: string;
+
+  @IsString()
+  name: string;
+
+  @IsString()
+  address: string;
+
+  @IsString()
+  phoneNumber: string;
+
+  @IsNumber()
+  @IsPositive()
+  discount: number;
+}
+```
+
+### src/restaurants/restaurants.service.ts
+```typescript
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Restaurant, RestaurantDocument } from './schemas/restaurant.schema';
+import { CreateRestaurantDto } from './dto/create-restaurant.dto';
+
+@Injectable()
+export class RestaurantsService {
+  constructor(
+    @InjectModel(Restaurant.name) private restaurantModel: Model<RestaurantDocument>,
+  ) {}
+
+  async create(createRestaurantDto: CreateRestaurantDto): Promise<Restaurant> {
+    const createdRestaurant = new this.restaurantModel(createRestaurantDto);
+    return createdRestaurant.save();
+  }
+
+  async findAll(): Promise<Restaurant[]> {
+    return this.restaurantModel.find().exec();
+  }
+
+  async findOne(id: string): Promise<Restaurant> {
+    return this.restaurantModel.findById(id).exec();
+  }
+
+  async remove(id: string): Promise<Restaurant> {
+    return this.restaurantModel.findByIdAndDelete(id).exec();
+  }
+}
+```
+
+### src/restaurants/restaurants.controller.ts
+```typescript
+import { Controller, Get, Post, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { RestaurantsService } from './restaurants.service';
+import { CreateRestaurantDto } from './dto/create-restaurant.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../common/enums/roles.enum';
+
+@Controller('restaurants')
+export class RestaurantsController {
+  constructor(private readonly restaurantsService: RestaurantsService) {}
+
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  create(@Body() createRestaurantDto: CreateRestaurantDto) {
+    return this.restaurantsService.create(createRestaurantDto);
+  }
+
+  @Get()
+  findAll() {
+    return this.restaurantsService.findAll();
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  remove(@Param('id') id: string) {
+    return this.restaurantsService.remove(id);
+  }
+}
+```
+
+### src/restaurants/restaurants.module.ts
+```typescript
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { RestaurantsService } from './restaurants.service';
+import { RestaurantsController } from './restaurants.controller';
+import { Restaurant, RestaurantSchema } from './schemas/restaurant.schema';
+
+@Module({
+  imports: [MongooseModule.forFeature([{ name: Restaurant.name, schema: RestaurantSchema }])],
+  providers: [RestaurantsService],
+  controllers: [RestaurantsController],
+})
+export class RestaurantsModule {}
+```
+
+## 7. Reviews Module
+
+### src/reviews/schemas/review.schema.ts
+```typescript
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
+
+export type ReviewDocument = Review & Document;
+
+@Schema({ timestamps: true })
+export class Review {
+  @Prop({ required: true })
+  reviewID: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  userId: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'Restaurant', required: true })
+  restaurantId: Types.ObjectId;
+
+  @Prop({ required: true, min: 1, max: 5 })
+  rating: number;
+
+  @Prop({ required: true })
+  comment: string;
+}
+
+export const ReviewSchema = SchemaFactory.createForClass(Review);
+```
+
+### src/reviews/dto/create-review.dto.ts
+```typescript
+import { IsString, IsNumber, Min, Max, IsMongoId } from 'class-validator';
+
+export class CreateReviewDto {
+  @IsString()
+  reviewID: string;
+
+  @IsMongoId()
+  restaurantId: string;
+
+  @IsNumber()
+  @Min(1)
+  @Max(5)
+  rating: number;
+
+  @IsString()
+  comment: string;
+}
+```
+
+### src/reviews/reviews.service.ts
+```typescript
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Review, ReviewDocument } from './schemas/review.schema';
+import { CreateReviewDto } from './dto/create-review.dto';
+
+@Injectable()
+export class ReviewsService {
+  constructor(@InjectModel(Review.name) private reviewModel: Model<ReviewDocument>) {}
+
+  async create(createReviewDto: CreateReviewDto, userId: string): Promise<Review> {
+    const createdReview = new this.reviewModel({
+      ...createReviewDto,
+      userId,
+    });
+    return createdReview.save();
+  }
+
+  async findByRestaurant(restaurantId: string): Promise<Review[]> {
+    return this.reviewModel
+      .find({ restaurantId })
+      .populate('userId', 'name')
+      .populate('restaurantId', 'name')
+      .exec();
+  }
+}
+```
+
+### src/reviews/reviews.controller.ts
+```typescript
+import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { ReviewsService } from './reviews.service';
+import { CreateReviewDto } from './dto/create-review.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../common/enums/roles.enum';
+
+@Controller('reviews')
+export class ReviewsController {
+  constructor(private readonly reviewsService: ReviewsService) {}
+
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.USER)
+  create(@Body() createReviewDto: CreateReviewDto, @Request() req) {
+    return this.reviewsService.create(createReviewDto, req.user.userId);
+  }
+
+  @Get(':restaurantId')
+  findByRestaurant(@Param('restaurantId') restaurantId: string) {
+    return this.reviewsService.findByRestaurant(restaurantId);
+  }
+}
+```
+
+### src/reviews/reviews.module.ts
+```typescript
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { ReviewsService } from './reviews.service';
+import { ReviewsController } from './reviews.controller';
+import { Review, ReviewSchema } from './schemas/review.schema';
+
+@Module({
+  imports: [MongooseModule.forFeature([{ name: Review.name, schema: ReviewSchema }])],
+  providers: [ReviewsService],
+  controllers: [ReviewsController],
+})
+export class ReviewsModule {}
+```
+
+## 8. Redemptions Module
+
+### src/redemptions/schemas/redemption.schema.ts
+```typescript
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
+
+export type RedemptionDocument = Redemption & Document;
+
+@Schema({ timestamps: true })
+export class Redemption {
+  @Prop({ required: true })
+  redemptionId: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  userId: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'Restaurant', required: true })
+  restaurantId: Types.ObjectId;
+
+  @Prop({ required: true, unique: true })
+  code: string;
+}
+
+export const RedemptionSchema = SchemaFactory.createForClass(Redemption);
+```
+
+### src/redemptions/dto/create-redemption.dto.ts
+```typescript
+import { IsString, IsMongoId } from 'class-validator';
+
+export class CreateRedemptionDto {
+  @IsString()
+  redemptionId: string;
+
+  @IsMongoId()
+  restaurantId: string;
+}
+```
+
+### src/redemptions/redemptions.service.ts
+```typescript
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Redemption, RedemptionDocument } from './schemas/redemption.schema';
+import { CreateRedemptionDto } from './dto/create-redemption.dto';
+
+@Injectable()
+export class RedemptionsService {
+  constructor(
+    @InjectModel(Redemption.name) private redemptionModel: Model<RedemptionDocument>,
+  ) {}
+
+  async create(createRedemptionDto: CreateRedemptionDto, userId: string): Promise<Redemption> {
+    const code = this.generateCode();
+    const createdRedemption = new this.redemptionModel({
+      ...createRedemptionDto,
+      userId,
+      code,
+    });
+    return createdRedemption.save();
+  }
+
+  async findByUser(userId: string): Promise<Redemption[]> {
+    return this.redemptionModel
+      .find({ userId })
+      .populate('restaurantId', 'name')
+      .exec();
+  }
+
+  private generateCode(): string {
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  }
+}
+```
+
+### src/redemptions/redemptions.controller.ts
+```typescript
+import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { RedemptionsService } from './redemptions.service';
+import { CreateRedemptionDto } from './dto/create-redemption.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../common/enums/roles.enum';
+
+@Controller('redemptions')
+export class RedemptionsController {
+  constructor(private readonly redemptionsService: RedemptionsService) {}
+
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.USER)
+  create(@Body() createRedemptionDto: CreateRedemptionDto, @Request() req) {
+    return this.redemptionsService.create(createRedemptionDto, req.user.userId);
+  }
+
+  @Get(':userId')
+  @UseGuards(JwtAuthGuard)
+  findByUser(@Param('userId') userId: string) {
+    return this.redemptionsService.findByUser(userId);
+  }
+}
+```
+
+### src/redemptions/redemptions.module.ts
+```typescript
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { RedemptionsService } from './redemptions.service';
+import { RedemptionsController } from './redemptions.controller';
+import { Redemption, RedemptionSchema } from './schemas/redemption.schema';
+
+@Module({
+  imports: [MongooseModule.forFeature([{ name: Redemption.name, schema: RedemptionSchema }])],
+  providers: [RedemptionsService],
+  controllers: [RedemptionsController],
+})
+export class RedemptionsModule {}
+```
+
+## 9. Clothing Module
+
+### src/clothing/schemas/clothing.schema.ts
+```typescript
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
+
+export type ClothingDocument = Clothing & Document;
+
+@Schema({ timestamps: true })
+export class Clothing {
+  @Prop({ required: true })
+  brandId: string;
+
+  @Prop({ required: true })
+  name: string;
+
+  @Prop({ required: true })
+  category: string;
+
+  @Prop({ required: true })
+  discount: number;
+
+  @Prop({ required: true })
+  website: string;
+}
+
+export const ClothingSchema = SchemaFactory.createForClass(Clothing);
+```
+
+### src/clothing/dto/create-clothing.dto.ts
+```typescript
+import { IsString, IsNumber, IsPositive } from 'class-validator';
+
+export class CreateClothingDto {
+  @IsString()
+  brandId: string;
+
+  @IsString()
+  name: string;
+
+  @IsString()
+  category: string;
+
+  @IsNumber()
+  @IsPositive()
+  discount: number;
+
+  @IsString()
+  website: string;
+}
+```
+
+### src/clothing/clothing.service.ts
+```typescript
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Clothing, ClothingDocument } from './schemas/clothing.schema';
+import { CreateClothingDto } from './dto/create-clothing.dto';
+
+@Injectable()
+export class ClothingService {
+  constructor(@InjectModel(Clothing.name) private clothingModel: Model<ClothingDocument>) {}
+
+  async create(createClothingDto: CreateClothingDto): Promise<Clothing> {
+    const createdClothing = new this.clothingModel(createClothingDto);
+    return createdClothing.save();
+  }
+
+  async findAll(): Promise<Clothing[]> {
+    return this.clothingModel.find().exec();
+  }
+
+  async findOne(id: string): Promise<Clothing> {
+    return this.clothingModel.findById(id).exec();
+  }
+
+  async update(id: string, updateClothingDto: CreateClothingDto): Promise<Clothing> {
+    return this.clothingModel.findByIdAndUpdate(id, updateClothingDto, { new: true }).exec();
+  }
+
+  async remove(id: string): Promise<Clothing> {
+    return this.clothingModel.findByIdAndDelete(id).exec();
+  }
+}
+```
+
+### src/clothing/clothing.controller.ts
+```typescript
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { ClothingService } from './clothing.service';
+import { CreateClothingDto } from './dto/create-clothing.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../common/enums/roles.enum';
+
+@Controller('clothing')
+export class ClothingController {
+  constructor(private readonly clothingService: ClothingService) {}
+
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  create(@Body() createClothingDto: CreateClothingDto) {
+    return this.clothingService.create(createClothingDto);
+  }
+
+  @Get()
+  findAll() {
+    return this.clothingService.findAll();
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.clothingService.findOne(id);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  update(@Param('id') id: string, @Body() updateClothingDto: CreateClothingDto) {
+    return this.clothingService.update(id, updateClothingDto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  remove(@Param('id') id: string) {
+    return this.clothingService.remove(id);
+  }
+}
+```
+
+### src/clothing/clothing.module.ts
+```typescript
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { ClothingService } from './clothing.service';
+import { ClothingController } from './clothing.controller';
+import { Clothing, ClothingSchema } from './schemas/clothing.schema';
+
+@Module({
+  imports: [MongooseModule.forFeature([{ name: Clothing.name, schema: ClothingSchema }])],
+  controllers: [ClothingController],
+  providers: [ClothingService],
+})
+export class ClothingModule {}
+```
+
+## 10. Discounts Module
+
+### src/discounts/schemas/discount.schema.ts
+```typescript
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
+
+export type DiscountDocument = Discount & Document;
+
+@Schema({ timestamps: true })
+export class Discount {
+  @Prop({ required: true })
+  discountId: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'Restaurant', required: true })
+  restaurantId: Types.ObjectId;
+
+  @Prop({ required: true })
+  title: string;
+
+  @Prop({ required: true })
+  description: string;
+
+  @Prop({ required: true })
+  discountPercent: number;
+
+  @Prop({ required: true })
+  startDate: Date;
+
+  @Prop({ required: true })
+  endDate: Date;
+}
+
+export const DiscountSchema = SchemaFactory.createForClass(Discount);
+```
+
+### src/discounts/dto/create-discount.dto.ts
+```typescript
+import { IsString, IsNumber, IsDateString, IsMongoId, IsPositive, Max } from 'class-validator';
+
+export class CreateDiscountDto {
+  @IsString()
+  discountId: string;
+
+  @IsMongoId()
+  restaurantId: string;
+
+  @IsString()
+  title: string;
+
+  @IsString()
+  description: string;
+
+  @IsNumber()
+  @IsPositive()
+  @Max(100)
+  discountPercent: number;
+
+  @IsDateString()
+  startDate: string;
+
+  @IsDateString()
+  endDate: string;
+}
+```
+
+### src/discounts/discounts.service.ts
+```typescript
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Discount, DiscountDocument } from './schemas/discount.schema';
+import { CreateDiscountDto } from './dto/create-discount.dto';
+
+@Injectable()
+export class DiscountsService {
+  constructor(@InjectModel(Discount.name) private discountModel: Model<DiscountDocument>) {}
+
+  async create(createDiscountDto: CreateDiscountDto): Promise<Discount> {
+    const createdDiscount = new this.discountModel(createDiscountDto);
+    return createdDiscount.save();
+  }
+
+  async findAll(): Promise<Discount[]> {
+    return this.discountModel.find().populate('restaurantId', 'name').exec();
+  }
+
+  async findByRestaurant(restaurantId: string): Promise<Discount[]> {
+    return this.discountModel.find({ restaurantId }).populate('restaurantId', 'name').exec();
+  }
+
+  async findActive(): Promise<Discount[]> {
+    const now = new Date();
+    return this.discountModel
+      .find({
+        startDate: { $lte: now },
+        endDate: { $gte: now },
+      })
+      .populate('restaurantId', 'name')
+      .exec();
+  }
+
+  async findOne(id: string): Promise<Discount> {
+    return this.discountModel.findById(id).populate('restaurantId', 'name').exec();
+  }
+
+  async update(id: string, updateDiscountDto: CreateDiscountDto): Promise<Discount> {
+    return this.discountModel.findByIdAndUpdate(id, updateDiscountDto, { new: true }).exec();
+  }
+
+  async remove(id: string): Promise<Discount> {
+    return this.discountModel.findByIdAndDelete(id).exec();
+  }
+}
+```
+
+### src/discounts/discounts.controller.ts
+```typescript
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { DiscountsService } from './discounts.service';
+import { CreateDiscountDto } from './dto/create-discount.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../common/enums/roles.enum';
+
+@Controller('discounts')
+export class DiscountsController {
+  constructor(private readonly discountsService: DiscountsService) {}
+
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  create(@Body() createDiscountDto: CreateDiscountDto) {
+    return this.discountsService.create(createDiscountDto);
+  }
+
+  @Get()
+  findAll() {
+    return this.discountsService.findAll();
+  }
+
+  @Get('active')
+  findActive() {
+    return this.discountsService.findActive();
+  }
+
+  @Get('restaurant/:restaurantId')
+  findByRestaurant(@Param('restaurantId') restaurantId: string) {
+    return this.discountsService.findByRestaurant(restaurantId);
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.discountsService.findOne(id);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  update(@Param('id') id: string, @Body() updateDiscountDto: CreateDiscountDto) {
+    return this.discountsService.update(id, updateDiscountDto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  remove(@Param('id') id: string) {
+    return this.discountsService.remove(id);
+  }
+}
+```
+
+### src/discounts/discounts.module.ts
+```typescript
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { DiscountsService } from './discounts.service';
+import { DiscountsController } from './discounts.controller';
+import { Discount, DiscountSchema } from './schemas/discount.schema';
+
+@Module({
+  imports: [MongooseModule.forFeature([{ name: Discount.name, schema: DiscountSchema }])],
+  controllers: [DiscountsController],
+  providers: [DiscountsService],
+})
+export class DiscountsModule {}
+```
+
+## 11. Codes Module
+
+### src/codes/schemas/code.schema.ts
+```typescript
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
+
+export type CodeDocument = Code & Document;
+
+@Schema({ timestamps: true })
+export class Code {
+  @Prop({ required: true })
+  codeId: string;
+
+  @Prop({ type: Types.ObjectId, ref: 'Discount', required: true })
+  discountId: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  userId: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'Restaurant', required: true })
+  restaurantId: Types.ObjectId;
+
+  @Prop({ required: true, unique: true })
+  code: string;
+
+  @Prop({ default: false })
+  isUsed: boolean;
+}
+
+export const CodeSchema = SchemaFactory.createForClass(Code);
+```
+
+### src/codes/dto/create-code.dto.ts
+```typescript
+import { IsString, IsMongoId, IsBoolean, IsOptional } from 'class-validator';
+
+export class CreateCodeDto {
+  @IsString()
+  codeId: string;
+
+  @IsMongoId()
+  discountId: string;
+
+  @IsMongoId()
+  restaurantId: string;
+
+  @IsString()
+  @IsOptional()
+  code?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isUsed?: boolean;
+}
+```
+
+### src/codes/codes.service.ts
+```typescript
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Code, CodeDocument } from './schemas/code.schema';
+import { CreateCodeDto } from './dto/create-code.dto';
+
+@Injectable()
+export class CodesService {
+  constructor(@InjectModel(Code.name) private codeModel: Model<CodeDocument>) {}
+
+  async create(createCodeDto: CreateCodeDto, userId: string): Promise<Code> {
+    const code = createCodeDto.code || this.generateCode();
+    const createdCode = new this.codeModel({
+      ...createCodeDto,
+      userId,
+      code,
+      isUsed: false,
+    });
+    return createdCode.save();
+  }
+
+  async findAll(): Promise<Code[]> {
+    return this.codeModel
+      .find()
+      .populate('userId', 'name email')
+      .populate('discountId', 'title')
+      .populate('restaurantId', 'name')
+      .exec();
+  }
+
+  async findByUser(userId: string): Promise<Code[]> {
+    return this.codeModel
+      .find({ userId })
+      .populate('discountId', 'title')
+      .populate('restaurantId', 'name')
+      .exec();
+  }
+
+  async findByCode(code: string): Promise<Code> {
+    return this.codeModel
+      .findOne({ code })
+      .populate('userId', 'name email')
+      .populate('discountId', 'title discountPercent')
+      .populate('restaurantId', 'name')
+      .exec();
+  }
+
+  async useCode(code: string): Promise<Code> {
+    const foundCode = await this.codeModel.findOne({ code });
+    if (!foundCode) {
+      throw new BadRequestException('Invalid code');
+    }
+    if (foundCode.isUsed) {
+      throw new BadRequestException('Code already used');
+    }
+    foundCode.isUsed = true;
+    return foundCode.save();
+  }
+
+  async findOne(id: string): Promise<Code> {
+    return this.codeModel
+      .findById(id)
+      .populate('userId', 'name email')
+      .populate('discountId', 'title')
+      .populate('restaurantId', 'name')
+      .exec();
+  }
+
+  async remove(id: string): Promise<Code> {
+    return this.codeModel.findByIdAndDelete(id).exec();
+  }
+
+  private generateCode(): string {
+    return Math.random().toString(36).substring(2, 10).toUpperCase();
+  }
+}
+```
+
+### src/codes/codes.controller.ts
+```typescript
+import { Controller, Get, Post, Body, Param, Delete, UseGuards, Request, Patch } from '@nestjs/common';
+import { CodesService } from './codes.service';
+import { CreateCodeDto } from './dto/create-code.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { Role } from '../common/enums/roles.enum';
+
+@Controller('codes')
+export class CodesController {
+  constructor(private readonly codesService: CodesService) {}
+
+  @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.USER)
+  create(@Body() createCodeDto: CreateCodeDto, @Request() req) {
+    return this.codesService.create(createCodeDto, req.user.userId);
+  }
+
+  @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  findAll() {
+    return this.codesService.findAll();
+  }
+
+  @Get('user/:userId')
+  @UseGuards(JwtAuthGuard)
+  findByUser(@Param('userId') userId: string) {
+    return this.codesService.findByUser(userId);
+  }
+
+  @Get('verify/:code')
+  @UseGuards(JwtAuthGuard)
+  findByCode(@Param('code') code: string) {
+    return this.codesService.findByCode(code);
+  }
+
+  @Patch('use/:code')
+  @UseGuards(JwtAuthGuard)
+  useCode(@Param('code') code: string) {
+    return this.codesService.useCode(code);
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  findOne(@Param('id') id: string) {
+    return this.codesService.findOne(id);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  remove(@Param('id') id: string) {
+    return this.codesService.remove(id);
+  }
+}
+```
+
+### src/codes/codes.module.ts
+```typescript
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { CodesService } from './codes.service';
+import { CodesController } from './codes.controller';
+import { Code, CodeSchema } from './schemas/code.schema';
+
+@Module({
+  imports: [MongooseModule.forFeature([{ name: Code.name, schema: CodeSchema }])],
+  controllers: [CodesController],
+  providers: [CodesService],
+})
+export class CodesModule {}
+```
+
+## 12. Environment Configuration (.env)
+
+```env
+# Database
+MONGODB_URI=mongodb://localhost:27017/restaurant-app
+
+# JWT
+JWT_SECRET=your-super-secret-jwt-key-here
+
+# Server
+PORT=3000
+```
+
+## 13. Package.json Dependencies
+
+```json
+{
+  "name": "restaurant-discount-backend",
+  "version": "1.0.0",
+  "description": "NestJS backend for restaurant discount app",
+  "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.0.0",
+    "@nestjs/core": "^10.0.0",
+    "@nestjs/platform-express": "^10.0.0",
+    "@nestjs/mongoose": "^10.0.0",
+    "@nestjs/jwt": "^10.1.0",
+    "@nestjs/passport": "^10.0.0",
+    "@nestjs/config": "^3.0.0",
+    "mongoose": "^7.4.0",
+    "passport": "^0.6.0",
+    "passport-jwt": "^4.0.1",
+    "bcryptjs": "^2.4.3",
+    "class-validator": "^0.14.0",
+    "class-transformer": "^0.5.1",
+    "reflect-metadata": "^0.1.13",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.0.0",
+    "@nestjs/schematics": "^10.0.0",
+    "@nestjs/testing": "^10.0.0",
+    "@types/express": "^4.17.17",
+    "@types/jest": "^29.5.2",
+    "@types/node": "^20.3.1",
+    "@types/supertest": "^2.0.12",
+    "@types/bcryptjs": "^2.4.2",
+    "@types/passport-jwt": "^3.0.9",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.42.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "jest": "^29.5.0",
+    "prettier": "^3.0.0",
+    "source-map-support": "^0.5.21",
+    "supertest": "^6.3.3",
+    "ts-jest": "^29.1.0",
+    "ts-loader": "^9.4.3",
+    "ts-node": "^10.9.1",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.1.3"
+  }
+}
+```
+
+## API Endpoints Summary
+
+### Authentication
+- `POST /auth/register` - Register new user
+- `POST /auth/login` - Login user
+
+### Users (Admin only)
+- `GET /users` - Get all users
+- `DELETE /users/:id` - Delete user
+
+### Restaurants
+- `POST /restaurants` - Create restaurant (Admin only)
+- `GET /restaurants` - Get all restaurants
+- `DELETE /restaurants/:id` - Delete restaurant (Admin only)
+
+### Reviews
+- `POST /reviews` - Create review (User only)
+- `GET /reviews/:restaurantId` - Get reviews by restaurant
+
+### Redemptions
+- `POST /redemptions` - Create redemption (User only)
+- `GET /redemptions/:userId` - Get user redemptions
+
+### Clothing
+- `POST /clothing` - Create clothing item (Admin only)
+- `GET /clothing` - Get all clothing
+- `GET /clothing/:id` - Get clothing by ID
+- `PATCH /clothing/:id` - Update clothing (Admin only)
+- `DELETE /clothing/:id` - Delete clothing (Admin only)
+
+### Discounts
+- `POST /discounts` - Create discount (Admin only)
+- `GET /discounts` - Get all discounts
+- `GET /discounts/active` - Get active discounts
+- `GET /discounts/restaurant/:restaurantId` - Get discounts by restaurant
+- `GET /discounts/:id` - Get discount by ID
+- `PATCH /discounts/:id` - Update discount (Admin only)
+- `DELETE /discounts/:id` - Delete discount (Admin only)
+
+### Codes
+- `POST /codes` - Create code
+- `GET /codes` - Get all codes (Admin only)
+- `GET /codes/user/:userId` - Get codes by user
+- `GET /codes/verify/:code` - Verify code
+- `PATCH /codes/use/:code` - Use code
+- `GET /codes/:id` - Get code by ID
+- `DELETE /codes/:id` - Delete code (Admin only)
+
+## How to Run
+
+1. Install dependencies: `npm install`
+2. Set up MongoDB connection in `.env` file
+3. Start development server: `npm run start:dev`
+4. The API will be available at `http://localhost:3000`
+
+## Key Features Implemented
+
+✅ JWT Authentication with role-based access control  
+✅ MongoDB integration with Mongoose  
+✅ Input validation with DTOs  
+✅ Role-based guards (Admin/User)  
+✅ Password hashing with bcrypt  
+✅ Modular architecture  
+✅ All required CRUD operations  
+✅ Proper error handling  
+✅ TypeScript support  
+✅ Population of referenced documents

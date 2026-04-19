@@ -1,0 +1,326 @@
+/* General Styles */
+* {
+    margin: 0px auto;
+    padding: 0px;
+    text-align: center;
+    font-family: "Open Sans", sans-serif;
+  }
+  
+  /* Main Container */
+  .cotn_principal {
+    position: absolute;
+    width: 100%;
+    display: flex;
+    height: 100%;
+    background: linear-gradient(135deg, #f8f1f1 0%, #f0d6d6 100%);
+  }
+  
+  .cont_centrar {
+    display: flex;
+    align-self: center;
+    width: 100%;
+  }
+  
+  /* Login Container */
+  .cont_login {
+    position: relative;
+    width: 640px;
+    margin: 0 auto;
+  }
+  
+  /* Background Info */
+  .cont_back_info {
+    position: relative;
+    float: left;
+    width: 640px;
+    height: 280px;
+    overflow: hidden;
+    background-color: #fff;
+    box-shadow: 1px 10px 30px -10px rgba(0, 0, 0, 0.5);
+  }
+  
+  /* Forms Container */
+  .cont_forms {
+    position: absolute;
+    overflow: hidden;
+    top: 0px;
+    left: 0px;
+    width: 320px;
+    height: 280px;
+    background-color: #eee;
+    transition: all 0.5s;
+    z-index: 10;
+  }
+  
+  .cont_forms_active_login {
+    box-shadow: 1px 10px 30px -10px rgba(0, 0, 0, 0.5);
+    height: 420px;
+    top: -60px;
+    left: 0px;
+    transition: all 0.5s;
+  }
+  
+  .cont_forms_active_sign_up {
+    box-shadow: 1px 10px 30px -10px rgba(0, 0, 0, 0.5);
+    height: 420px;
+    top: -60px;
+    left: 320px;
+    transition: all 0.5s;
+  }
+  
+  /* Background Images */
+  .cont_img_back_grey {
+    position: absolute;
+    width: 950px;
+    top: -80px;
+    left: -116px;
+  }
+  
+  .cont_img_back_grey > img {
+    width: 100%;
+    filter: grayscale(100%);
+    opacity: 0.2;
+    animation: animar_fondo 20s linear infinite alternate;
+  }
+  
+  .cont_img_back_ {
+    position: absolute;
+    width: 950px;
+    top: -80px;
+    left: -116px;
+  }
+  
+  .cont_img_back_ > img {
+    width: 100%;
+    opacity: 0.3;
+    animation: animar_fondo 20s linear infinite alternate;
+  }
+  
+  .cont_forms_active_login > .cont_img_back_ {
+    top: -20px;
+    transition: all 0.5s;
+  }
+  
+  .cont_forms_active_sign_up > .cont_img_back_ {
+    top: -20px;
+    left: -435px;
+    transition: all 0.5s;
+  }
+  
+  /* Login/Signup Info */
+  .cont_info_log_sign_up {
+    position: absolute;
+    width: 640px;
+    height: 280px;
+    top: 0px;
+    z-index: 1;
+  }
+  
+  .col_md_login, .col_md_sign_up {
+    position: relative;
+    float: left;
+    width: 50%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .col_md_login > .cont_ba_opcitiy, 
+  .col_md_sign_up > .cont_ba_opcitiy {
+    padding: 30px;
+    margin: 0;
+    width: 80%;
+  }
+  
+  .col_md_login h2, 
+  .col_md_sign_up h2 {
+    font-weight: 400;
+    margin-bottom: 15px;
+    color: #fff;
+  }
+  
+  .col_md_login p, 
+  .col_md_sign_up p {
+    font-weight: 300;
+    margin-bottom: 20px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  
+  /* Buttons */
+  .btn_login, .btn_sign_up {
+    border: none;
+    padding: 12px 25px;
+    border-radius: 3px;
+    box-shadow: 1px 5px 20px -5px rgba(0, 0, 0, 0.4);
+    color: #fff;
+    margin-top: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .btn_login {
+    background-color: #26c6da;
+  }
+  
+  .btn_login:hover {
+    background-color: #00acc1;
+    transform: translateY(-2px);
+    box-shadow: 1px 8px 25px -5px rgba(0, 0, 0, 0.4);
+  }
+  
+  .btn_sign_up {
+    background-color: #ef5350;
+  }
+  
+  .btn_sign_up:hover {
+    background-color: #e53935;
+    transform: translateY(-2px);
+    box-shadow: 1px 8px 25px -5px rgba(0, 0, 0, 0.4);
+  }
+  
+  /* Background Opacity */
+  .cont_ba_opcitiy {
+    position: relative;
+    background-color: rgba(120, 144, 156, 0.55);
+    width: 80%;
+    border-radius: 3px;
+    text-align: center;
+    padding: 30px 0;
+  }
+  
+  /* Forms */
+  .cont_form_login, .cont_form_sign_up {
+    position: absolute;
+    width: 320px;
+    padding: 20px;
+    opacity: 0;
+    display: none;
+    transition: all 0.5s;
+    background-color: #fff;
+    height: 100%;
+    box-sizing: border-box;
+  }
+  
+  .cont_form_login h2, .cont_form_sign_up h2 {
+    font-weight: 400;
+    color: #757575;
+    margin-bottom: 30px;
+    margin-top: 20px;
+  }
+  
+  .cont_form_login form, .cont_form_sign_up form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+  }
+  
+  .cont_form_login input, .cont_form_sign_up input {
+    width: 260px;
+    padding: 12px 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 3px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+  }
+  
+  .cont_form_login input:focus, 
+  .cont_form_sign_up input:focus {
+    outline: none;
+    border-color: #26c6da;
+    box-shadow: 0 0 0 2px rgba(38, 198, 218, 0.2);
+  }
+  
+  .cont_form_sign_up input:focus {
+    border-color: #ef5350;
+    box-shadow: 0 0 0 2px rgba(239, 83, 80, 0.2);
+  }
+  
+  /* Back button */
+  .cont_form_login a, .cont_form_sign_up a {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    color: #757575;
+    text-decoration: none;
+    transition: color 0.3s ease;
+  }
+  
+  .cont_form_login a:hover, .cont_form_sign_up a:hover {
+    color: #26c6da;
+  }
+  
+  .cont_form_sign_up a:hover {
+    color: #ef5350;
+  }
+  
+  /* Error Message */
+  .error-message {
+    color: #ef5350;
+    font-size: 13px;
+    margin-bottom: 15px;
+    background-color: rgba(239, 83, 80, 0.1);
+    padding: 8px 12px;
+    border-radius: 3px;
+    border-left: 3px solid #ef5350;
+  }
+  
+  /* Animations */
+  @keyframes animar_fondo {
+    from {
+      transform: scale(1) translate(0px);
+    }
+    to {
+      transform: scale(1.5) translate(50px);
+    }
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 680px) {
+    .cont_login {
+      width: 100%;
+      max-width: 400px;
+    }
+    
+    .cont_back_info, .cont_info_log_sign_up {
+      width: 100%;
+    }
+    
+    .col_md_login, .col_md_sign_up {
+      width: 100%;
+      padding: 15px;
+    }
+    
+    .cont_forms {
+      width: 100%;
+      left: 0;
+    }
+    
+    .cont_forms_active_sign_up {
+      left: 0;
+    }
+    
+    .cont_forms_active_login, 
+    .cont_forms_active_sign_up {
+      height: auto;
+      padding-bottom: 30px;
+      position: relative;
+      top: 0;
+      margin-top: 20px;
+    }
+    
+    .cont_form_login, 
+    .cont_form_sign_up {
+      position: relative;
+      width: 100%;
+      opacity: 1;
+      display: block;
+    }
+  }
